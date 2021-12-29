@@ -30,11 +30,12 @@ using (var reader = new BinaryReader(fs))
     {
         try
         {
-            await cpu.Step();
+            cpu.Step();
         }
-        catch (Exception e)
+        catch (NotSupportedException e)
         {
             Console.WriteLine(e.Message);
+            break;
         }
     }
 }

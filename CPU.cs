@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using SDL2;
 
 namespace Chip8Sharp
 {
@@ -106,7 +107,7 @@ namespace Chip8Sharp
             Array.Copy(characters, RAM, characters.Length);
         }
 
-        public async Task DrawDisplay()
+        public void DrawDisplay()
         {
             Console.Clear();
             Console.SetCursorPosition(0, 0);
@@ -126,8 +127,7 @@ namespace Chip8Sharp
                 }
                 Console.WriteLine(line);
             }
-
-            await Task.Delay(1);
+            Thread.Sleep(1);
         }
 
         public void LoadProgram(IEnumerable<byte> program)
@@ -141,7 +141,7 @@ namespace Chip8Sharp
             PC = 512;
         }
 
-        public async Task Step()
+        public void Step()
         {
             if (!watch.IsRunning)
             {
@@ -323,7 +323,7 @@ namespace Chip8Sharp
                                 Display[index] = ((Display[index] != 0 && pixel == 0) || (Display[index] == 0 && pixel == 1)) ? 0xFFFFFFFF : 0;
                             }
                         }
-                        await DrawDisplay();
+                        DrawDisplay();
                     }
                     break;
                 case 0xE000:
@@ -372,9 +372,12 @@ namespace Chip8Sharp
                                 I = (ushort)(V[x] * 5);
                                 break;
                             case 0x33:
-                                RAM[I] = byte.Parse(V[x].ToString()[0].ToString());
-                                RAM[I + 1] = byte.Parse(V[x].ToString()[1].ToString());
-                                RAM[I + 2] = byte.Parse(V[x].ToString()[2].ToString());
+                                if(V[x] >= 0)
+                                    RAM[I] = byte.Parse(V[x].ToString()[0].ToString());
+                                if(V[x] > 9)
+                                    RAM[I + 1] = byte.Parse(V[x].ToString()[1].ToString());
+                                if(V[x] > 99)
+                                    RAM[I + 2] = byte.Parse(V[x].ToString()[2].ToString());
                                 break;
                             case 0x55:
                                 for (var i = 0; i <= x; i++)
@@ -402,9 +405,9 @@ namespace Chip8Sharp
 
         void ThrowOpcode(int @case, ushort opcode) => throw @case switch
         {
-            1 => new Exception($"Unimplemented opcode {opcode.ToString("X4")}"),
-            2 => new Exception($"Unsupported opcode {opcode.ToString("X4")}"),
-            _ => new Exception($"Exception case {@case} on opcode {opcode.ToString("X4")}")
+            1 => new NotSupportedException($"Unimplemented opcode {opcode.ToString("X4")}"),
+            2 => new NotSupportedException($"Unsupported opcode {opcode.ToString("X4")}"),
+            _ => new NotSupportedException($"Exception case {@case} on opcode {opcode.ToString("X4")}")
         };
     }
 }

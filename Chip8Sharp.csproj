@@ -8,6 +8,15 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Reference Include="SDL2-CS">
+      <HintPath>Library\SDL2-CS.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Library\SDL2.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Update="Resources\roms\Chip8 emulator Logo [Garstyciuks].ch8">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
