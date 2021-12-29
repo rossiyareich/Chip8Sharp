@@ -1,4 +1,7 @@
-﻿using System.Diagnostics;
+﻿#define SDL
+#define Console
+
+using System.Diagnostics;
 using SDL2;
 
 namespace Chip8Sharp
@@ -8,16 +11,18 @@ namespace Chip8Sharp
         public byte[] RAM = new byte[4096];         //4kb RAM
         public byte[] V = new byte[16];             //16 data registers (V0 => VF), 8 bits wide each
         public ushort PC = 0;                       //PC, 12 bits wide
-        public ushort I = 0;                        //16 bit register for MEM
-        public Stack<ushort> Stack = new(24);       //24 Levels of nesting, 48 bytes wide total, 2 bytes wide each
+        public ushort I = 0;                        //16 bit register for MEM (or a global pointer, as you may)
+        public Stack<ushort> Stack = new(24);       //24 Levels of nesting, 48 bytes wide total, 2 bytes wide each for program instructions
         public byte DelayTimer = 0;                 //Delay timer, 8 bits wide
         public byte SoundTimer = 0;                 //Sound timer, 8 bits wide
-        public byte Keyboard = 0;                   //Keyboard input, using only lower 4 bits for 16 keys total
+        public ushort Keyboard = 0;                 //Keyboard input, using only lower 4 bits for 16 keys total
         public uint[] Display = new uint[64 * 32];  //64x32 Monochromatic display, one byte per pixel (on/off)
 
         Random rng = new();
         Stopwatch watch = new();
+
         public bool IsWaitingForKeyPress = false;
+        public event Action OnDrawDisplay;
 
         void InitializeFont()
         {
@@ -107,7 +112,8 @@ namespace Chip8Sharp
             Array.Copy(characters, RAM, characters.Length);
         }
 
-        public void DrawDisplay()
+#if Console
+        public void DrawDisplayConsole()
         {
             Console.Clear();
             Console.SetCursorPosition(0, 0);
@@ -127,12 +133,116 @@ namespace Chip8Sharp
                 }
                 Console.WriteLine(line);
             }
-            Thread.Sleep(1);
         }
+#endif
+#if SDL
+        IntPtr window;
+        IntPtr renderer;
+
+        IntPtr sdlSurface;
+        IntPtr sdlTexture;
+
+        public CPU(IntPtr window, IntPtr renderer)
+        {
+            this.window = window;
+            this.renderer = renderer;
+        }
+
+        /*
+            1  2  3  C         1  2  3  4
+            4  5  6  D   ===   Q  W  E  R
+            7  8  9  E   ===   A  S  D  F
+            A  0  B  F         Z  X  C  V
+
+            The '8', '4', '6', and '2' keys are typically used for directional input.
+        */
+        static int KeyCodeToKeyIndex(SDL.SDL_Keycode keycode)
+        {
+            return keycode switch
+            {
+                SDL.SDL_Keycode.SDLK_1 => 0x1,
+                SDL.SDL_Keycode.SDLK_2 => 0x2,
+                SDL.SDL_Keycode.SDLK_3 => 0x3,
+                SDL.SDL_Keycode.SDLK_4 => 0xC,
+                SDL.SDL_Keycode.SDLK_q => 0x4,
+                SDL.SDL_Keycode.SDLK_w => 0x5,
+                SDL.SDL_Keycode.SDLK_e => 0x6,
+                SDL.SDL_Keycode.SDLK_r => 0xD,
+                SDL.SDL_Keycode.SDLK_a => 0x7,
+                SDL.SDL_Keycode.SDLK_s => 0x8,
+                SDL.SDL_Keycode.SDLK_d => 0x9,
+                SDL.SDL_Keycode.SDLK_f => 0xE,
+                SDL.SDL_Keycode.SDLK_z => 0xA,
+                SDL.SDL_Keycode.SDLK_x => 0x0,
+                SDL.SDL_Keycode.SDLK_c => 0xB,
+                SDL.SDL_Keycode.SDLK_v => 0xF,
+                _ => -1
+            };
+        }
+
+        public void PollEventsSDL()
+        {
+            while (SDL.SDL_PollEvent(out var sdlEvent) != 0)
+            {
+                switch(sdlEvent.type)
+                {
+                    case SDL.SDL_EventType.SDL_QUIT:
+                        Environment.Exit(0);
+                        break;
+                    case SDL.SDL_EventType.SDL_KEYDOWN:
+                        {
+                            var key = KeyCodeToKeyIndex(sdlEvent.key.keysym.sym);
+                            if(key != -1)
+                            {
+                                Keyboard |= (ushort)(1 << key);
+                            }
+                        }
+                        break;
+                    case SDL.SDL_EventType.SDL_KEYUP:
+                        {
+                            var key = KeyCodeToKeyIndex(sdlEvent.key.keysym.sym);
+                            if (key != -1)
+                            {
+                                Keyboard &= (ushort)~(1 << key);
+                            }
+                        }
+                        break;
+                }
+            }
+        }
+
+        public void DrawDisplaySDL()
+        {
+            unsafe
+            {
+                fixed (uint* displayHandle = Display)
+                {
+                    sdlSurface = SDL.SDL_CreateRGBSurfaceFrom(new IntPtr(displayHandle), 64, 32, 32, 64 * 4, 0xFF, 0xFF00, 0xFF0000, 0xFF000000);
+                }
+            }
+
+            sdlTexture = SDL.SDL_CreateTextureFromSurface(renderer, sdlSurface);
+            SDL.SDL_RenderCopy(renderer, sdlTexture, IntPtr.Zero, IntPtr.Zero);
+            SDL.SDL_RenderPresent(renderer);
+
+            if (sdlTexture != IntPtr.Zero)
+            {
+                SDL.SDL_DestroyTexture(sdlTexture);
+            }
+
+            SDL.SDL_RenderClear(renderer);
+        }
+#endif
 
         public void LoadProgram(IEnumerable<byte> program)
         {
             InitializeFont();
+#if SDL
+            OnDrawDisplay += DrawDisplaySDL;
+#endif
+#if Console
+            OnDrawDisplay += DrawDisplayConsole;
+#endif
             var programArr = program.ToArray();
             for (var i = 0; i < programArr.Length; i++)
             {
@@ -166,7 +276,8 @@ namespace Chip8Sharp
 
             if (IsWaitingForKeyPress)
             {
-                V[(opcode & 0x0F00 >> 8)] = Keyboard;
+                //V[(opcode & 0x0F00 >> 8)] = Keyboard;
+                throw new Exception("Not implemented yet");
                 return;
             }
 
@@ -189,7 +300,6 @@ namespace Chip8Sharp
                     {
                         ThrowOpcode(1, opcode); //0nnn is ignored
                     }
-
                     break;
                 case 0x1000:
                     PC = (ushort)(opcode & 0x0FFF);
@@ -203,14 +313,12 @@ namespace Chip8Sharp
                     {
                         PC += 2;
                     }
-
                     break;
                 case 0x4000:
                     if (V[(opcode & 0x0F00) >> 8] != (opcode & 0x00FF))
                     {
                         PC += 2;
                     }
-
                     break;
                 case 0x5000:
                     if ((opcode & 0x000F) != 0)
@@ -221,7 +329,6 @@ namespace Chip8Sharp
                     {
                         PC += 2;
                     }
-
                     break;
                 case 0x6000:
                     V[(opcode & 0x0F00) >> 8] = (byte)(opcode & 0x00FF);
@@ -278,12 +385,10 @@ namespace Chip8Sharp
                     {
                         ThrowOpcode(2, opcode);
                     }
-
                     if (V[(opcode & 0x0F00) >> 8] != V[(opcode & 0x00F0) >> 4])
                     {
                         PC += 2;
                     }
-
                     break;
                 case 0xA000:
                     I = (ushort)(opcode & 0x0FFF);
@@ -323,7 +428,8 @@ namespace Chip8Sharp
                                 Display[index] = ((Display[index] != 0 && pixel == 0) || (Display[index] == 0 && pixel == 1)) ? 0xFFFFFFFF : 0;
                             }
                         }
-                        DrawDisplay();
+                        OnDrawDisplay?.Invoke();
+                        Thread.Sleep(5);
                     }
                     break;
                 case 0xE000:
@@ -345,7 +451,6 @@ namespace Chip8Sharp
                     {
                         ThrowOpcode(2, opcode);
                     }
-
                     break;
                 case 0xF000:
                     {
@@ -372,12 +477,9 @@ namespace Chip8Sharp
                                 I = (ushort)(V[x] * 5);
                                 break;
                             case 0x33:
-                                if(V[x] >= 0)
-                                    RAM[I] = byte.Parse(V[x].ToString()[0].ToString());
-                                if(V[x] > 9)
-                                    RAM[I + 1] = byte.Parse(V[x].ToString()[1].ToString());
-                                if(V[x] > 99)
-                                    RAM[I + 2] = byte.Parse(V[x].ToString()[2].ToString());
+                                RAM[I] = (byte)(V[x] / 100);
+                                RAM[I + 1] = (byte)((V[x] % 100) / 10);
+                                RAM[I + 2] = (byte)(V[x] % 10);
                                 break;
                             case 0x55:
                                 for (var i = 0; i <= x; i++)
