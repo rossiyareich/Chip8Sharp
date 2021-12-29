@@ -6,7 +6,7 @@ using SDL2;
 
 namespace Chip8Sharp
 {
-    public class CPU
+    public class CPU : IDisposable
     {
         public byte[] RAM = new byte[4096];         //4kb RAM
         public byte[] V = new byte[16];             //16 data registers (V0 => VF), 8 bits wide each
@@ -156,43 +156,41 @@ namespace Chip8Sharp
 
             The '8', '4', '6', and '2' keys are typically used for directional input.
         */
-        static int KeyCodeToKeyIndex(SDL.SDL_Keycode keycode)
+        static int KeyCodeToKeyIndex(SDL.SDL_Keycode keycode) => keycode switch
         {
-            return keycode switch
-            {
-                SDL.SDL_Keycode.SDLK_1 => 0x1,
-                SDL.SDL_Keycode.SDLK_2 => 0x2,
-                SDL.SDL_Keycode.SDLK_3 => 0x3,
-                SDL.SDL_Keycode.SDLK_4 => 0xC,
-                SDL.SDL_Keycode.SDLK_q => 0x4,
-                SDL.SDL_Keycode.SDLK_w => 0x5,
-                SDL.SDL_Keycode.SDLK_e => 0x6,
-                SDL.SDL_Keycode.SDLK_r => 0xD,
-                SDL.SDL_Keycode.SDLK_a => 0x7,
-                SDL.SDL_Keycode.SDLK_s => 0x8,
-                SDL.SDL_Keycode.SDLK_d => 0x9,
-                SDL.SDL_Keycode.SDLK_f => 0xE,
-                SDL.SDL_Keycode.SDLK_z => 0xA,
-                SDL.SDL_Keycode.SDLK_x => 0x0,
-                SDL.SDL_Keycode.SDLK_c => 0xB,
-                SDL.SDL_Keycode.SDLK_v => 0xF,
-                _ => -1
-            };
-        }
+            SDL.SDL_Keycode.SDLK_1 => 0x1,
+            SDL.SDL_Keycode.SDLK_2 => 0x2,
+            SDL.SDL_Keycode.SDLK_3 => 0x3,
+            SDL.SDL_Keycode.SDLK_4 => 0xC,
+            SDL.SDL_Keycode.SDLK_q => 0x4,
+            SDL.SDL_Keycode.SDLK_w => 0x5,
+            SDL.SDL_Keycode.SDLK_e => 0x6,
+            SDL.SDL_Keycode.SDLK_r => 0xD,
+            SDL.SDL_Keycode.SDLK_a => 0x7,
+            SDL.SDL_Keycode.SDLK_s => 0x8,
+            SDL.SDL_Keycode.SDLK_d => 0x9,
+            SDL.SDL_Keycode.SDLK_f => 0xE,
+            SDL.SDL_Keycode.SDLK_z => 0xA,
+            SDL.SDL_Keycode.SDLK_x => 0x0,
+            SDL.SDL_Keycode.SDLK_c => 0xB,
+            SDL.SDL_Keycode.SDLK_v => 0xF,
+            _ => -1
+        };
 
         public void PollEventsSDL()
         {
             while (SDL.SDL_PollEvent(out var sdlEvent) != 0)
             {
-                switch(sdlEvent.type)
+                switch (sdlEvent.type)
                 {
                     case SDL.SDL_EventType.SDL_QUIT:
+                        Dispose();
                         Environment.Exit(0);
                         break;
                     case SDL.SDL_EventType.SDL_KEYDOWN:
                         {
                             var key = KeyCodeToKeyIndex(sdlEvent.key.keysym.sym);
-                            if(key != -1)
+                            if (key != -1)
                             {
                                 Keyboard |= (ushort)(1 << key);
                             }
@@ -224,6 +222,11 @@ namespace Chip8Sharp
             sdlTexture = SDL.SDL_CreateTextureFromSurface(renderer, sdlSurface);
             SDL.SDL_RenderCopy(renderer, sdlTexture, IntPtr.Zero, IntPtr.Zero);
             SDL.SDL_RenderPresent(renderer);
+
+            if (sdlSurface != IntPtr.Zero)
+            {
+                SDL.SDL_FreeSurface(sdlSurface);
+            }
 
             if (sdlTexture != IntPtr.Zero)
             {
@@ -511,5 +514,12 @@ namespace Chip8Sharp
             2 => new NotSupportedException($"Unsupported opcode {opcode.ToString("X4")}"),
             _ => new NotSupportedException($"Exception case {@case} on opcode {opcode.ToString("X4")}")
         };
+        public void Dispose()
+        {
+#if SDL
+            SDL.SDL_DestroyRenderer(renderer);
+            SDL.SDL_DestroyWindow(window);
+#endif
+        }
     }
 }

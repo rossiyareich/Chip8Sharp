@@ -16,9 +16,6 @@ Console.ForegroundColor = ConsoleColor.Green;
 Console.WriteLine(@"The following features are not available on a console window--
 * User keyboard input
 * Audio");
-await Task.Delay(1000);
-Console.Clear();
-Console.ResetColor();
 #endif
 #if SDL
 SDL.SDL_SetHint(SDL.SDL_HINT_WINDOWS_DISABLE_THREAD_NAMING, "1");
@@ -27,7 +24,7 @@ if (SDL.SDL_Init(SDL.SDL_INIT_EVERYTHING) < 0)
     throw new ApplicationException("SDL failed to init.");
 }
 
-IntPtr window = SDL.SDL_CreateWindow("Chip8Sharp", 128, 64, 64 * 8, 32 * 8, SDL.SDL_WindowFlags.SDL_WINDOW_RESIZABLE);
+IntPtr window = SDL.SDL_CreateWindow("Chip8Sharp", SDL.SDL_WINDOWPOS_CENTERED, SDL.SDL_WINDOWPOS_CENTERED, 64 * 8, 32 * 8, 0);
 if (window == IntPtr.Zero)
 {
     throw new ApplicationException("SDL could not create a window");
@@ -37,14 +34,35 @@ if (renderer == IntPtr.Zero)
 {
     throw new ApplicationException("SDL could not create a valid renderer.");
 }
+SDL.SDL_RenderClear(renderer);
+SDL.SDL_RenderPresent(renderer);
+
+SDL_image.IMG_Init(SDL_image.IMG_InitFlags.IMG_INIT_PNG);
+var texturePng = SDL_image.IMG_LoadTexture(renderer, "Resources/Keymapping.png");
+SDL.SDL_RenderCopy(renderer, texturePng, IntPtr.Zero, IntPtr.Zero);
+SDL.SDL_RenderPresent(renderer);
+SDL_image.IMG_Quit();
+
+if (texturePng != IntPtr.Zero)
+    SDL.SDL_DestroyTexture(texturePng);
+#endif
+
+Thread.Sleep(2000);
+
+#if Console
+Console.Clear();
+Console.ResetColor();
 #endif
 
 #if SDL
+SDL.SDL_RenderClear(renderer);
+SDL.SDL_RenderPresent(renderer);
 var cpu = new CPU(window, renderer);
 #elif Console
 var cpu = new CPU();
 #endif
 
+using (cpu)
 using (var fs = new FileStream(@"Resources\roms\PONG2.ch8", FileMode.Open))
 using (var reader = new BinaryReader(fs))
 {
