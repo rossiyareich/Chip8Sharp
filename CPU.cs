@@ -187,7 +187,7 @@ namespace Chip8Sharp
             {
                 fixed (uint* displayHandle = Display)
                 {
-                    sdlSurface = SDL.SDL_CreateRGBSurfaceFrom(new IntPtr(displayHandle), 64, 32, 32, 64 * 4, 0xFF, 0xFF00, 0xFF0000, 0xFF000000);
+                    sdlSurface = SDL.SDL_CreateRGBSurfaceFrom(new IntPtr(displayHandle), 64, 32, 32, 64 * 4, 0xFF000000, 0x00FF0000, 0x0000FF00, 0x000000FF);
                 }
             }
 
@@ -393,7 +393,7 @@ namespace Chip8Sharp
                                     V[0xF] = 1;
                                 }
 
-                                Display[index] = ((Display[index] != 0 && pixel == 0) || (Display[index] == 0 && pixel == 1)) ? 0xFFFFFFFF : 0;
+                                Display[index] = ((Display[index] != 0 && pixel == 0) || (Display[index] == 0 && pixel == 1)) ? 0x7797C9FFu : 0x00000000;
                             }
                         }
                         DrawDisplaySDL();

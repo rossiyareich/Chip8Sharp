@@ -8,7 +8,7 @@ if (SDL.SDL_Init(SDL.SDL_INIT_EVERYTHING) < 0)
     throw new ApplicationException("SDL failed to init.");
 }
 
-IntPtr window = SDL.SDL_CreateWindow("Chip8Sharp", SDL.SDL_WINDOWPOS_CENTERED, SDL.SDL_WINDOWPOS_CENTERED, 64 * 8, 32 * 8, 0);
+IntPtr window = SDL.SDL_CreateWindow("Chip8Sharp", SDL.SDL_WINDOWPOS_CENTERED, SDL.SDL_WINDOWPOS_CENTERED, 64 * 8 * 2, 32 * 8 * 2, 0);
 if (window == IntPtr.Zero)
 {
     throw new ApplicationException("SDL could not create a window");
