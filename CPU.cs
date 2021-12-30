@@ -16,7 +16,7 @@ namespace Chip8Sharp
         public uint[] Display = new uint[64 * 32];  //64x32 Monochromatic display, one byte per pixel (on/off)
 
         Random rng = new();
-        Stopwatch watch = new();
+        Stopwatch watch = Stopwatch.StartNew();
 
         public bool IsWaitingForKeyPress = false;
 
@@ -166,6 +166,11 @@ namespace Chip8Sharp
                             {
                                 Keyboard |= (ushort)(1 << key);
                             }
+
+                            if (IsWaitingForKeyPress)
+                            {
+                                KeyPressed((byte)key);
+                            }
                         }
                         break;
                     case SDL.SDL_EventType.SDL_KEYUP:
@@ -181,6 +186,14 @@ namespace Chip8Sharp
             }
         }
 
+        private void KeyPressed(byte key)
+        {
+            IsWaitingForKeyPress = false;
+            var opcode = (ushort)((RAM[PC] << 8) | RAM[PC + 1]);
+            V[(opcode & 0x0F00 >> 8)] = key;
+            PC += 2;
+        }
+
         public void DrawDisplaySDL()
         {
             unsafe
@@ -192,6 +205,7 @@ namespace Chip8Sharp
             }
 
             sdlTexture = SDL.SDL_CreateTextureFromSurface(renderer, sdlSurface);
+            SDL.SDL_RenderClear(renderer);
             SDL.SDL_RenderCopy(renderer, sdlTexture, IntPtr.Zero, IntPtr.Zero);
             SDL.SDL_RenderPresent(renderer);
 
@@ -205,7 +219,7 @@ namespace Chip8Sharp
                 SDL.SDL_DestroyTexture(sdlTexture);
             }
 
-            SDL.SDL_RenderClear(renderer);
+            SDL.SDL_Delay(10);
         }
 
         public void LoadProgram(IEnumerable<byte> program)
@@ -221,12 +235,9 @@ namespace Chip8Sharp
 
         public void Step()
         {
-            if (!watch.IsRunning)
-            {
-                watch.Start();
-            }
             if (watch.ElapsedMilliseconds > 100 / 6)
             {
+                PollEventsSDL();
                 if (DelayTimer > 0)
                 {
                     DelayTimer--;
@@ -244,9 +255,7 @@ namespace Chip8Sharp
 
             if (IsWaitingForKeyPress)
             {
-                //V[(opcode & 0x0F00 >> 8)] = Keyboard;
-                throw new Exception("Not implemented yet");
-                return;
+                throw new Exception("Step should not be called when IsWaitingForKeyPress is true");
             }
 
             ushort firstNibble = (ushort)(opcode & 0xF000);     //Get the top nibble
@@ -397,7 +406,6 @@ namespace Chip8Sharp
                             }
                         }
                         DrawDisplaySDL();
-                        SDL.SDL_Delay(5);
                     }
                     break;
                 case 0xE000:

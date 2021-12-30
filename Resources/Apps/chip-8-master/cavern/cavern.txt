@@ -1,0 +1,1709 @@
+Cavern
+Copyright 2014-2016 Matthew Mikolay
+See github.com/mattmikolay/chip-8 or mattmik.com for more info.
+
+ADDR    LABEL       INSTR   COMMENT
+
+                            Begin program at address 200
+
+                            Display start screen
+                            V1 register is game difficulty
+                            V5 register is current level number
+200                 6100    Set V1 (difficulty) = 0 for no difficulty selected
+202                 6500    Set V5 (level) = 0 for intro screen
+204                 226E    Jump to DRAWLEVEL subroutine to draw current level
+206     KEYINTRO    F60A    Wait for a keypress, store in V6
+208                 4601    Skip next instruction if V6 != 1
+20A                 610A    Set V1 (difficulty) = 10
+20C                 4602    Skip next instruction if V6 != 2
+20E                 6105    Set V1 (difficulty) = 5
+210                 4603    Skip next instruction if V6 != 3
+212                 6101    Set V1 (difficulty) = 1
+214                 4100    Skip next instruction if V1 != 0
+216                 1206    Jump to KEYINTRO
+
+                            Set player's x and y coordinates
+                            V2 register is player's current direction:
+                                0 = stationary, 1 = right, 2 = up,
+                                3 = left, 4 = down
+                            V3 register is X coordinate of player
+                            V4 register is Y coordinate of player
+218                 6200    Set V2 (direction) = 0, defaulting to stationary
+21A                 6334    V3 (X) = 52
+21C                 6414    V4 (Y) = 20
+
+                            Move forward to the first playable level
+21E                 6501    Set V5 (level) = 1
+
+220     NEXTLEVEL   226E    Jump to DRAWLEVEL subroutine to draw current level
+
+                            Check for game end
+222                 450B    Skip next if V5 (level) != 11, the final level
+224                 126C    Jump to ENDGAME
+
+                            Let the player be controlled by the keypad
+                            Update direction register based upon keypress
+                            V6 register is scratch register to check pressed key
+226     KEYCHECK    6602    Set V6 = 2
+228                 E6A1    Skip next if V6 not pressed
+22A                 6202    Set V2 (direction) = up
+22C                 6606    Set V6 = 6
+22E                 E6A1    Skip next if V6 not pressed
+230                 6201    Set V2 (direction) = right
+232                 6604    Set V6 = 4
+234                 E6A1    Skip next if V6 not pressed
+236                 6203    Set V2 (direction) = left
+238                 6608    Set V6 = 8
+23A                 E6A1    Skip next if V6 not pressed
+23C                 6204    Set V2 (direction) = down
+
+                            Update player's x and y position based on direction
+23E                 4201    Skip next if V2 (direction) != 1
+240                 7301    Increment V3, X = X + 1
+242                 4202    Skip next if V2 (direction) != 2
+244                 74FF    Decrement V4, Y = Y - 1
+246                 4203    Skip next if V2 (direction) != 3
+248                 73FF    Decrement V3, X = X - 1
+24A                 4204    Skip next if V2 (direction) != 4
+24C                 7401    Increment V4, Y = Y + 1
+
+                            Check if player has beaten the current level
+                            (If player has reached the left side of the screen)
+24E                 33FF    Skip next if V3 (X) = 255, meaning the player
+                            wrapped around to right side of screen)
+250                 1258    Jump to DRAWPLAYER
+
+                            Progress to the next level
+252                 633F    Set V3 (X) = 63, the far right side of the screen
+254                 7501    Increment V5 (level)
+256                 1220    Jump to NEXTLEVEL
+
+                            Draw the player
+258     DRAWPLAYER  A273    Set I to address of player sprite
+25A                 D341    Draw the player sprite on the screen
+
+                            Check for a collision with the graphics data
+25C                 3F00    Skip next if VF == 0
+25E                 126C    Jump to ENDGAME
+
+                            Set delay timer depending upon the game's difficulty
+260                 F115    DT = V1 (difficulty)
+262     TIMECHECK   F607    Set V6 = DT
+264                 3600    Skip next if V6 = 0
+266                 1262    Jump to TIMECHECK
+
+268                 D341    Erase player sprite on the screen
+26A                 1226    Jump to KEYCHECK to keep the player moving
+
+26C     ENDGAME     126C    Jump to ENDGAME
+
+                            Subroutine: Draw current level
+                            V6 is scratch register for address calculation
+                            V7 is scratch register for length of graphics data
+26E     DRAWLEVEL   00E0    Clear the screen
+270                 8650    V6 = V5 (scratch = level)
+272                 6780    V7 = 128 (number of bytes per half level data)
+274                 A29A    Set I = address of first level data
+
+276     FINDLEVEL   4600    Skip next instruction if V6 != 0
+278                 1282    Jump to LEVELSPRITE
+27A                 F71E    I = I + 128
+27C                 F71E    I = I + 128
+27E                 76FF    V6 = V6 - 1 (V6 = V6 + 255)
+280                 1276    Jump to FINDLEVEL
+
+                            Draw the level's sprite data to the screen
+                            V6 is scratch register for x coordinate on screen
+                            V7 is scratch register for y coordinate on screen
+                            V8 is scratch register, stores the constant 8
+                                (length of a single block)
+282     LEVELSPRITE 6808    V8 = 8
+
+                            Loop over y coordinates of screen
+284                 6700    V7 = 0
+
+                            Loop over x coordinates of screen
+286     YDRAW       6600    V6 = 0
+288     XDRAW       D678    Draw 8 x 8 sprite
+28A                 7608    Increment V6 by 8
+28C                 F81E    I = I + 8
+
+28E                 3640    Skip next instruction if V6 = 64 
+290                 1288    Jump to XDRAW
+
+292                 7708    Increment V7 by 8
+294                 3720    Skip next instruction if V7 = 32
+296                 1286    Jump to YDRAW
+
+298                 00EE    End DRAWLEVEL subroutine
+
+                            Level graphics from here forward...
+
+                            Title screen (Level 0):
+29A                 FFFF
+                    FF00
+                    FFFF
+                    00FF
+                    FFFF
+                    FF00
+                    CFDF
+                    19D8
+                    FFFF
+                    FF00
+                    1EBF
+                    B333
+                    FFFF
+                    FF00
+                    6363
+                    6363
+                    FFFF
+                    FF00
+                    7D7D
+                    6179
+                    FFFF
+                    FF00
+                    F3FB
+                    9BF3
+                    FFFF
+                    FF00
+                    9B9B
+                    985B
+                    FFFF
+                    FF00
+                    FFFF
+                    00FF
+                    FF00
+                    FFFF
+                    00FF
+                    80BB
+                    D819
+                    DFCF
+                    00FF
+                    00AA
+                    3FBF
+                    B333
+                    00FF
+                    003E
+                    3636
+                    1C1C
+                    00FF
+                    00EE
+                    7961
+                    7D7D
+                    00FF
+                    00EF
+                    F39B
+                    9B9B
+                    00FF
+                    00AA
+                    5B38
+                    3B3B
+                    00FF
+                    00E9
+                    FF00
+                    FFFF
+                    00FF
+                    01D5
+                    8ABA
+                    A2BB
+                    80FF
+                    C0DD
+                    AAAE
+                    A2A2
+                    00FF
+                    00D1
+                    AA2A
+                    AA22
+                    00FF
+                    00DD
+                    A4E4
+                    A4A4
+                    00FF
+                    10D7
+                    4A4A
+                    4A48
+                    00FF
+                    0077
+                    AAAC
+                    AAAA
+                    00FF
+                    0076
+                    A9A9
+                    A9ED
+                    00FF
+                    4058
+                    55DD
+                    4949
+                    01FF
+                    033B
+                    D1DD
+                    C5DD
+                    C0FF
+                    FFFF
+                    1191
+                    11DD
+                    00FF
+                    FFFF
+                    1490
+                    14DC
+                    00FF
+                    FFFF
+                    9497
+                    9197
+                    10FF
+                    FFFF
+                    5476
+                    4447
+                    00FF
+                    FFFF
+                    4565
+                    4576
+                    00FF
+                    FFFF
+                    4849
+                    485C
+                    40FF
+                    FFFF
+                    0BBB
+                    0B3B
+                    03FF
+                    FFFF
+
+                            Level 1:
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    C080
+                    0000
+                    070F
+                    FFFF
+                    0000
+                    0000
+                    FFFF
+                    FFFF
+                    0000
+                    0000
+                    FFFF
+                    FFFF
+                    0000
+                    0000
+                    FFFF
+                    FFFF
+                    0703
+                    0101
+                    C1E1
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    0F0F
+                    0F0F
+                    0F0F
+                    0F0F
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FEFC
+                    E1E1
+                    E1E1
+                    C000
+                    0000
+                    FFFF
+                    FFFF
+                    FF3F
+                    1F0F
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    0F0F
+                    0F0F
+                    0F0F
+                    0F0F
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    F8F8
+                    F0F0
+                    F0F0
+                    F0F0
+                    0000
+                    0000
+                    0000
+                    0000
+                    0707
+                    0303
+                    0303
+                    0303
+                    FFFF
+                    0000
+                    0000
+                    FFFF
+                    FFFE
+                    0000
+                    0000
+                    FFFF
+                    0F0F
+                    0F0F
+                    1F3F
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    F8F8
+                    FCFE
+                    FFFF
+                    FFFF
+                    0000
+                    0000
+                    00C0
+                    FFFF
+                    0707
+                    0F1F
+                    3FFF
+                    FFFF
+
+                            Level 2:
+
+                    FFFF
+                    FFFF
+                    FFFF
+                    FF07
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FEFC
+                    F8F8
+                    F8F8
+                    FFFF
+                    0000
+                    0000
+                    3F7F
+                    FFFF
+                    0000
+                    0000
+                    FEFF
+                    FFFF
+                    3F1F
+                    0F0F
+                    0F0F
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    0301
+                    0181
+                    C1C1
+                    C1C1
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    F8F8
+                    F8F8
+                    F8F8
+                    FCFE
+                    7F7F
+                    7F3F
+                    0000
+                    0000
+                    FFFF
+                    FFFF
+                    7F3F
+                    1F1F
+                    0F0F
+                    0F0F
+                    0F0F
+                    0F0F
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    C1C0
+                    C0C0
+                    E0F0
+                    FFFF
+                    FFFF
+                    0301
+                    0000
+                    E0F0
+                    FFFF
+                    FFFF
+                    0703
+                    0000
+                    FFFF
+                    FFFF
+                    FFFF
+                    0000
+                    FCFE
+                    FEFE
+                    FEFC
+                    0000
+                    1F1F
+                    1F1F
+                    1F1F
+                    1F1F
+                    0F0F
+                    0F0F
+                    0F0F
+                    0F0F
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    C0E0
+                    FFFF
+                    FFFF
+                    FFFF
+                    0000
+                    FFFF
+                    FFFF
+                    FFFF
+                    0000
+                    FFFF
+                    FFFF
+                    FFFF
+                    3F7F
+                    FFFF
+                    FFFF
+                    FFFF
+                    0F07
+                    0000
+                    80C0
+                    FFFF
+                    FFFF
+                    0000
+                    0000
+                    FFFF
+
+                            Level 3:
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FF00
+                    FFFC
+                    F0E0
+                    E1E3
+                    C303
+                    FF3F
+                    0F07
+                    87C7
+                    C3C0
+                    FFFF
+                    FFFF
+                    FFFF
+                    FF00
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FEFE
+                    FEFE
+                    FEFE
+                    FEFE
+                    0000
+                    001F
+                    1F1F
+                    1F1F
+                    0307
+                    1FFF
+                    FFFF
+                    FFFF
+                    C0E0
+                    F8FF
+                    FFFF
+                    FFFF
+                    0000
+                    00FF
+                    FFFF
+                    FFFF
+                    00FF
+                    FF00
+                    FFFF
+                    FFFF
+                    00FF
+                    FF00
+                    FFFF
+                    FFFF
+                    00FF
+                    FF00
+                    FFFF
+                    FFFF
+                    00F0
+                    F800
+                    FFFF
+                    FFFF
+                    1F1F
+                    1F1F
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+
+                            Level 4:
+
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FF00
+                    FEFE
+                    FEFE
+                    FEFE
+                    FFF0
+                    F7F7
+                    F7F7
+                    F7F7
+                    FF3C
+                    BDBD
+                    BDBD
+                    BDBD
+                    FF0F
+                    EFEF
+                    EFEF
+                    EFEF
+                    FF03
+                    7B7B
+                    7B7B
+                    7B7B
+                    FFC0
+                    DEDE
+                    DEDE
+                    DEDE
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FEFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    07FF
+                    FFFF
+                    FFFF
+                    FF80
+                    81FF
+                    FFFF
+                    FFFF
+                    FF1F
+                    E0FF
+                    FFFF
+                    FFFF
+                    FFFF
+                    78FF
+                    FFC0
+                    DFDF
+                    DFDF
+                    1EFF
+                    FF00
+                    FFFF
+                    FFFF
+                    00FF
+                    FF00
+                    FFFF
+                    FFFF
+                    00FF
+                    FF00
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FF00
+                    FFFF
+                    BFBF
+                    BFBF
+                    BF3F
+                    FFFF
+                    DFDF
+                    DFC0
+                    FFFF
+                    FFFF
+                    FFFF
+                    FF00
+                    FFFF
+                    FFFF
+                    DFDF
+                    DF1F
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+
+                            Level 5:
+
+                    FFFF
+                    0000
+                    FFFF
+                    FFFF
+                    FFF0
+                    0000
+                    FFFF
+                    FFFF
+                    0000
+                    0000
+                    FFFF
+                    FFFF
+                    0000
+                    0000
+                    FFFF
+                    0000
+                    0000
+                    0000
+                    FFFF
+                    0000
+                    0000
+                    0000
+                    FFFF
+                    FFFF
+                    0001
+                    077F
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    001F
+                    1F1F
+                    1C1C
+                    1C1C
+                    00F8
+                    F8F8
+                    0000
+                    007F
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FCF8
+                    F8F0
+                    F0F0
+                    FF00
+                    0307
+                    070F
+                    0F0F
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    1C1C
+                    1C1C
+                    1C1F
+                    1F1F
+                    7F7F
+                    0000
+                    00FF
+                    FFFF
+                    FFFF
+                    0000
+                    00FF
+                    FFFF
+                    F0E0
+                    0000
+                    00E0
+                    F0F0
+                    0F0F
+                    0F0F
+                    0F0F
+                    0F0F
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    E000
+                    0000
+                    00FF
+                    FF00
+                    0000
+                    0000
+                    00FF
+                    FF00
+                    0000
+                    0000
+                    00F8
+                    F000
+                    0000
+                    7070
+                    3838
+                    1C07
+                    0300
+                    0F07
+                    0703
+                    0000
+                    FFFF
+
+                            Level 6:
+
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    F8F8
+                    F8F8
+                    F8F8
+                    FFFF
+                    0000
+                    0000
+                    0000
+                    FFFF
+                    0000
+                    0000
+                    0000
+                    FFFF
+                    0000
+                    FFFF
+                    FFFF
+                    FFFF
+                    0000
+                    FFFF
+                    FFFF
+                    FFFF
+                    0000
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    F8F8
+                    F8F8
+                    F8F8
+                    F8F8
+                    0000
+                    181E
+                    1F1F
+                    1F1F
+                    0000
+                    0000
+                    20B0
+                    10B8
+                    FF95
+                    B591
+                    D595
+                    FFFF
+                    FF11
+                    5513
+                    5555
+                    FFFF
+                    F15D
+                    5137
+                    5F57
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    F8F8
+                    F8F8
+                    F8F8
+                    F8F8
+                    1317
+                    1F1F
+                    1F1F
+                    1619
+                    18BC
+                    1CBC
+                    FEFE
+                    FEFE
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FF00
+                    00FF
+                    FFFF
+                    FFFF
+                    FF00
+                    00FF
+                    F8F8
+                    F8F9
+                    FB03
+                    00FF
+                    1679
+                    FFFF
+                    FF3F
+                    1FFF
+                    EEF6
+                    F6B6
+                    D6D6
+                    EEFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+
+                            Level 7:
+
+                    FFFF
+                    00FF
+                    FFFF
+                    FFFF
+                    FFFF
+                    00FF
+                    FFFF
+                    FFFF
+                    FFFF
+                    1FC0
+                    FFFF
+                    FFFF
+                    FFFF
+                    FF3F
+                    BFBF
+                    BFBF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    BFBF
+                    BFBF
+                    BFBF
+                    BFBF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    F0F8
+                    FDFD
+                    F8F6
+                    FFFF
+                    00C6
+                    EFEF
+                    C631
+                    7B7B
+                    0031
+                    7B7B
+                    318C
+                    DEDE
+                    008C
+                    DEDE
+                    8C63
+                    F7F7
+                    0163
+                    F7F7
+                    6319
+                    BDBD
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    F6F1
+                    FBFB
+                    F1F0
+                    FFFF
+                    318C
+                    DEDE
+                    8C00
+                    FFFF
+                    8C63
+                    F7F7
+                    6300
+                    FFFF
+                    6318
+                    BDBD
+                    1800
+                    FFFF
+                    19C7
+                    EFEF
+                    C700
+                    FFFF
+                    FFFF
+                    FFFF
+                    FF00
+                    FFFF
+                    FFFF
+                    FFFF
+                    FF00
+                    F0FF
+                    FFFF
+                    FFFF
+                    FF00
+                    00FF
+
+                            Level 8:
+
+                    FBFB
+                    FBFB
+                    FBFB
+                    FBFB
+                    FFFF
+                    FFFF
+                    FFFE
+                    FCF8
+                    FFFF
+                    FFFF
+                    FF1F
+                    0FC7
+                    BFBF
+                    BEBE
+                    BEBE
+                    BEBE
+                    DFDF
+                    03DB
+                    DBDB
+                    DBDB
+                    FEFE
+                    FEFE
+                    FEFE
+                    FEFE
+                    7F7F
+                    7C7D
+                    7D7D
+                    7D7D
+                    FFFF
+                    00FF
+                    FFFF
+                    FFFF
+                    FB00
+                    00FB
+                    FBFB
+                    FBFB
+                    F103
+                    03F1
+                    F8FC
+                    FEFF
+                    E3F3
+                    F3E3
+                    C70F
+                    1F3F
+                    BEBE
+                    BEBE
+                    BEBE
+                    BEBE
+                    DBDB
+                    DBDB
+                    D8D8
+                    DFDF
+                    FCF8
+                    F1E3
+                    0707
+                    E3F1
+                    3D1D
+                    8DC5
+                    E1E1
+                    C78F
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FBFB
+                    FBFB
+                    FBFB
+                    FBFB
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    3F3F
+                    0000
+                    FFFF
+                    FFFF
+                    BEBE
+                    3E3E
+                    FEFE
+                    FEFE
+                    DFDF
+                    DFDF
+                    DFDF
+                    DFDF
+                    F8FC
+                    FEFE
+                    FEFE
+                    FEFE
+                    1F3F
+                    7F7F
+                    7F7F
+                    7F7F
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FBFB
+                    FBFB
+                    FBFB
+                    FBFB
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    80BF
+                    BFBF
+                    BFBF
+                    BFBF
+                    DFDF
+                    DFDF
+                    DFDF
+                    DFDF
+                    FEFE
+                    FEFE
+                    FEFE
+                    FEFE
+                    7F7F
+                    7F7F
+                    7F7F
+                    7F7F
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+
+                            Level 9:
+
+                    FFFF
+                    FFFF
+                    0303
+                    03E3
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    80BF
+                    A0AF
+                    A8AB
+                    FBFB
+                    03FF
+                    03FB
+                    0BEB
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    E3E3
+                    E3E3
+                    E3E3
+                    E3E3
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    AAAA
+                    AAAA
+                    AAAB
+                    A8AF
+                    23BF
+                    80FF
+                    11D5
+                    15F5
+                    FF80
+                    00FF
+                    FFFF
+                    FFFF
+                    FF00
+                    00FF
+                    FFFF
+                    FFFF
+                    FF00
+                    00FF
+                    FFFF
+                    FFFF
+                    E3E3
+                    E3E3
+                    E3E3
+                    E3E3
+                    FFFF
+                    FFFF
+                    FEFE
+                    FEFE
+                    FFFF
+                    FFFF
+                    22AA
+                    AAAA
+                    A0BF
+                    80FF
+                    22AA
+                    AAAA
+                    05FD
+                    01FF
+                    23AB
+                    ABAB
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    E0FF
+                    FFFF
+                    FFFF
+                    FFFF
+                    00FF
+                    FFFF
+                    FFFF
+                    FFFF
+                    88FF
+                    FFFF
+                    FFFF
+                    FFFF
+                    8AFA
+                    FAFA
+                    FAFA
+                    F8FF
+                    ABAB
+                    ABAB
+                    ABAB
+                    8BFB
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+
+                            Level 10:
+
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FEFC
+                    FFFF
+                    FFFF
+                    8000
+                    007F
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FEFC
+                    F8F1
+                    E3C7
+                    8F1F
+                    3F7F
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FDF9
+                    F1E1
+                    F1F9
+                    FDFF
+                    0075
+                    4562
+                    4575
+                    00FF
+                    0077
+                    2222
+                    2272
+                    00FF
+                    7F7F
+                    7F7F
+                    7F7F
+                    7FFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FEFC
+                    F8F1
+                    E3C7
+                    8F1F
+                    3F7F
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    0000
+                    00FF
+                    FFFF
+                    FFFF
+                    0000
+                    00FF
+                    FFFF
+                    FFFF
+                    0000
+                    00FF
+                    FFFF
+                    FFFF
+                    0000
+                    00FF
+                    FFFF
+                    FFFF
+                    0001
+                    03FF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+                    FFFF
+
+                            Level 11:
+
+                    0000
+                    0000
+                    0000
+                    0000
+                    0000
+                    0000
+                    0000
+                    0000
+                    0000
+                    0000
+                    0057
+                    5575
+                    0000
+                    0000
+                    0050
+                    5050
+                    0000
+                    0000
+                    008B
+                    89A9
+                    0000
+                    0000
+                    00B2
+                    2A2A
+                    0000
+                    0000
+                    0000
+                    0000
+                    0000
+                    0000
+                    0000
+                    0000
+                    0000
+                    0000
+                    0000
+                    0000
+                    0000
+                    0000
+                    0000
+                    0000
+                    2527
+                    0000
+                    0000
+                    0000
+                    5070
+                    0000
+                    0000
+                    0000
+                    A9FB
+                    0000
+                    0000
+                    0000
+                    28AA
+                    0000
+                    0000
+                    0000
+                    0000
+                    0000
+                    0000
+                    0000
+                    0000
+                    0000
+                    0000
+                    0000
+                    0000
+                    0000
+                    0000
+                    0000
+                    0702
+                    0202
+                    0200
+                    0000
+                    5755
+                    7755
+                    5500
+                    3A2A
+                    6555
+                    5655
+                    5500
+                    3A2A
+                    7040
+                    7010
+                    7000
+                    BB92
+                    EE8A
+                    EA8A
+                    8E00
+                    3AA2
+                    E0A0
+                    C0A0
+                    A000
+                    0000
+                    0000
+                    0000
+                    0000
+                    0000
+                    0000
+                    0000
+                    0000
+                    0000
+                    0000
+                    0000
+                    0000
+                    0000
+                    3A22
+                    2300
+                    0000
+                    0000
+                    3B29
+                    A900
+                    0000
+                    0000
+                    9212
+                    3A00
+                    0000
+                    0000
+                    AAA8
+                    BA00
+                    0000
+                    0000
+                    0000
+                    0000
+                    0000
+                    0000
+                    0000
+                    0000
+                    0000
+                    0000
