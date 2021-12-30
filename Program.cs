@@ -1,23 +1,7 @@
-﻿#define SDL
-#define Console
-
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using Chip8Sharp;
 using SDL2;
 
-#if Console
-Console.Title = "Chip8Sharp";
-Console.CursorVisible = false;
-#pragma warning disable CA1416 // Validate platform compatibility
-Console.SetWindowSize(64, 33);
-Console.SetBufferSize(64, 33);
-#pragma warning restore CA1416 // Validate platform compatibility
-Console.ForegroundColor = ConsoleColor.Green;
-Console.WriteLine(@"The following features are not available on a console window--
-* User keyboard input
-* Audio");
-#endif
-#if SDL
 SDL.SDL_SetHint(SDL.SDL_HINT_WINDOWS_DISABLE_THREAD_NAMING, "1");
 if (SDL.SDL_Init(SDL.SDL_INIT_EVERYTHING) < 0)
 {
@@ -45,22 +29,21 @@ SDL_image.IMG_Quit();
 
 if (texturePng != IntPtr.Zero)
     SDL.SDL_DestroyTexture(texturePng);
-#endif
 
-Thread.Sleep(2000);
+Stopwatch watch = new();
+watch.Start();
+while (SDL.SDL_WaitEvent(out var sdlEvent) != 0 && watch.ElapsedMilliseconds < 2000)
+{
+    if (sdlEvent.type == SDL.SDL_EventType.SDL_QUIT)
+    {
+        Environment.Exit(0);
+    }
+}
+watch.Stop();
 
-#if Console
-Console.Clear();
-Console.ResetColor();
-#endif
-
-#if SDL
 SDL.SDL_RenderClear(renderer);
 SDL.SDL_RenderPresent(renderer);
 var cpu = new CPU(window, renderer);
-#elif Console
-var cpu = new CPU();
-#endif
 
 using (cpu)
 using (var fs = new FileStream(@"Resources\roms\PONG2.ch8", FileMode.Open))
@@ -85,9 +68,7 @@ using (var reader = new BinaryReader(fs))
         try
         {
             cpu.Step();
-#if SDL
             cpu.PollEventsSDL();
-#endif
         }
         catch (NotSupportedException e)
         {

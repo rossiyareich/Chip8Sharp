@@ -1,7 +1,4 @@
-﻿#define SDL
-#define Console
-
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using SDL2;
 
 namespace Chip8Sharp
@@ -22,7 +19,6 @@ namespace Chip8Sharp
         Stopwatch watch = new();
 
         public bool IsWaitingForKeyPress = false;
-        public event Action OnDrawDisplay;
 
         void InitializeFont()
         {
@@ -112,30 +108,6 @@ namespace Chip8Sharp
             Array.Copy(characters, RAM, characters.Length);
         }
 
-#if Console
-        public void DrawDisplayConsole()
-        {
-            Console.Clear();
-            Console.SetCursorPosition(0, 0);
-            for (var y = 0; y < 32; y++)
-            {
-                string line = "";
-                for (var x = 0; x < 64; x++)
-                {
-                    if (Display[x + (y * 64)] != 0)
-                    {
-                        line += "*";
-                    }
-                    else
-                    {
-                        line += " ";
-                    }
-                }
-                Console.WriteLine(line);
-            }
-        }
-#endif
-#if SDL
         IntPtr window;
         IntPtr renderer;
 
@@ -235,17 +207,10 @@ namespace Chip8Sharp
 
             SDL.SDL_RenderClear(renderer);
         }
-#endif
 
         public void LoadProgram(IEnumerable<byte> program)
         {
             InitializeFont();
-#if SDL
-            OnDrawDisplay += DrawDisplaySDL;
-#endif
-#if Console
-            OnDrawDisplay += DrawDisplayConsole;
-#endif
             var programArr = program.ToArray();
             for (var i = 0; i < programArr.Length; i++)
             {
@@ -431,8 +396,8 @@ namespace Chip8Sharp
                                 Display[index] = ((Display[index] != 0 && pixel == 0) || (Display[index] == 0 && pixel == 1)) ? 0xFFFFFFFF : 0;
                             }
                         }
-                        OnDrawDisplay?.Invoke();
-                        Thread.Sleep(5);
+                        DrawDisplaySDL();
+                        SDL.SDL_Delay(5);
                     }
                     break;
                 case 0xE000:
@@ -516,10 +481,8 @@ namespace Chip8Sharp
         };
         public void Dispose()
         {
-#if SDL
             SDL.SDL_DestroyRenderer(renderer);
             SDL.SDL_DestroyWindow(window);
-#endif
         }
     }
 }
